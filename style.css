@@ -1,0 +1,25 @@
+h1 {
+  text-align: center;
+  font-size: 10vw; /* relative to the viewport width */
+}
+
+#duplicate-button {
+  margin: auto;
+  color: #fff;
+  background: #1565c0;
+  border-radius: 100vh;
+}
+
+#component-0 {
+  max-width: 80%; /* relative to the parent element's width */
+  margin: auto;
+  padding-top: 1.5rem;
+}
+
+/* You can also use media queries to adjust your style for different screen sizes */
+@media (max-width: 600px) {
+  #component-0 {
+    max-width: 90%;
+    padding-top: 1rem;
+  }
+}

@@ -1,5 +1,5 @@
 accelerate==0.21.0
-diffusers==0.19.3
+diffusers==0.20.0
 gradio==3.40.1
 invisible-watermark==0.2.0
 Pillow==10.0.0

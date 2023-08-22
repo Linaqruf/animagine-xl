@@ -50,19 +50,6 @@ if torch.cuda.is_available():
 else:
     pipe = None
 
-with open("sdxl_loras.toml", "r") as file:
-    data = toml.load(file)
-    sdxl_loras = [
-        {
-            "image": get_image_path(item["image"]),
-            "title": item["title"],
-            "repo": item["repo"],
-            "trigger_word": item.get("trigger_word", ""),
-            "weights": item["weights"],
-        }
-        for item in data['data']
-    ]
-saved_names = [hf_hub_download(item["repo"], item["weights"]) for item in sdxl_loras]
 def randomize_seed_fn(seed: int, randomize_seed: bool) -> int:
     if randomize_seed:
         seed = random.randint(0, MAX_SEED)

@@ -161,9 +161,11 @@ saved_names = [hf_hub_download(item["repo"], item["weights"]) for item in sdxl_l
 
 with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
     gr.Markdown(DESCRIPTION)
-    gr.DuplicateButton(value='Duplicate Space for private use',
-                       elem_id='duplicate-button',
-                       visible=os.getenv('SHOW_DUPLICATE_BUTTON') == '1')
+    gr.DuplicateButton(
+        value='Duplicate Space for private use',
+        elem_id='duplicate-button',
+        visible=os.getenv('SHOW_DUPLICATE_BUTTON') == '1'
+    )
     with gr.Row():
         with gr.Column(scale=1):
             with gr.Group():
@@ -236,13 +238,19 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
                     )
                     
                 with gr.Accordion(label='Advanced Options', open=False):
-                    seed = gr.Slider(label='Seed',
-                                    minimum=0,
-                                    maximum=MAX_SEED,
-                                    step=1,
-                                    value=0)
+                    seed = gr.Slider(
+                        label='Seed',
+                        minimum=0,
+                        maximum=MAX_SEED,
+                        step=1,
+                        value=0
+                    )
                     
-                    randomize_seed = gr.Checkbox(label='Randomize seed', value=True)
+                    randomize_seed = gr.Checkbox(
+                        label='Randomize seed',
+                        value=True
+                    )
+                    
                     with gr.Row():
                         guidance_scale = gr.Slider(
                             label='Guidance scale',

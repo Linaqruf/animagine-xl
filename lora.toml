@@ -1,0 +1,29 @@
+[[data]]
+image = "images/amelia-watson.png"
+title = "Amelia Watson (Hololive)"
+repo = "Linaqruf/amelia-watson-xl-lora"
+weights = "amelia_watson_xl_lora.safetensors"
+
+[[data]]
+image = "images/ufotable-style.png"
+title = "Ufotable Style"
+repo = "Linaqruf/ufotable-style-xl-lora"
+weights = "ufotable_style_xl_lora.safetensors"
+
+[[data]]
+image = "images/pastel-style.jpeg"
+title = "Pastel Style"
+repo = "Linaqruf/pastel-style-xl-lora"
+weights = "pastel_style_xl_lora.safetensors"
+
+[[data]]
+image = "images/furina.jpeg"
+title = "Furina (Genshin Impact)"
+repo = "Linaqruf/furina-xl-lora"
+weights = "furina_xl_lora.safetensors"
+
+[[data]]
+image = "images/nakiri-ayame.jpeg"
+title = "Nakiri Ayame (Hololive)"
+repo = "Linaqruf/nakiri-ayame-xl-lora"
+weights = "nakiri_ayame_xl_lora.safetensors"

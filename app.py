@@ -363,7 +363,21 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
         queue=False,
         api_name=False,
     )
-
+    width.change(
+        fn=lambda x: gr.update(value=x),
+        inputs=width,
+        outputs=target_width,
+        queue=False,
+        api_name=False,
+    )
+    height.change(
+        fn=lambda x: gr.update(value=x),
+        inputs=height,
+        outputs=target_height,
+        queue=False,
+        api_name=False,
+    )   
+    
     inputs = [
         prompt,
         negative_prompt,

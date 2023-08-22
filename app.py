@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import os
 import random
-
+import toml
 import gradio as gr
 import numpy as np
 import PIL.Image
 import torch
-import json
+import utils
+import gc
 from huggingface_hub import hf_hub_download
 from diffusers.models import AutoencoderKL
 from diffusers import DiffusionPipeline, EulerAncestralDiscreteScheduler
@@ -17,7 +18,7 @@ from diffusers import DiffusionPipeline, EulerAncestralDiscreteScheduler
 DESCRIPTION = '# Animagine XL'
 if not torch.cuda.is_available():
     DESCRIPTION += '\n<p>Running on CPU 🥶 This demo does not work on CPU.</p>'
-
+IS_COLAB = utils.is_google_colab()
 MAX_SEED = np.iinfo(np.int32).max
 CACHE_EXAMPLES = torch.cuda.is_available() and os.getenv(
     'CACHE_EXAMPLES') == '1'
@@ -64,7 +65,22 @@ def get_image_path(base_path):
     # If no match is found, return None or raise an error
     return None
     
+last_lora = ""
 
+def update_selection(selected_state: gr.SelectData):
+    lora_repo = sdxl_loras[selected_state.index]["repo"]
+    updated_text = f"### Selected: [{lora_repo}](https://huggingface.co/{lora_repo})"
+    lora_weight = sdxl_loras[selected_state.index]["multiplier"]
+    return (
+        updated_text,
+        selected_state,
+        lora_weight,
+    )
+
+def check_selected(selected_state):
+    if not selected_state:
+        raise gr.Error("You must select a LoRA")
+    
 def generate(prompt: str,
              negative_prompt: str = '',
              prompt_2: str = '',
@@ -80,13 +96,19 @@ def generate(prompt: str,
              guidance_scale: float = 12.0,
              num_inference_steps: int = 50,
              use_lora: bool = False,
-             lora_selection: str = "",
              lora_weight: float = 1.0,
              set_target_size: bool = False,
-             set_original_size: bool = False) -> PIL.Image.Image:
-    
+             set_original_size: bool = False,
+             selected_state: str = "") -> PIL.Image.Image:
+    global last_lora, pipe
+
     generator = torch.Generator().manual_seed(seed)
 
+    if not selected_state:
+        raise gr.Error("You must select a LoRA")
+    
+    repo_name = sdxl_loras[selected_state.index]["repo"]
+    full_path_lora = saved_names[selected_state.index]
     cross_attention_kwargs = None
 
     if not set_original_size:
@@ -103,29 +125,31 @@ def generate(prompt: str,
     if negative_prompt_2 == '':
         negative_prompt_2 = None
 
-    if use_lora and lora_selection:
-        lora_index = [item["title"] for item in sdxl_loras].index(lora_selection)
-        full_path_lora = saved_names[lora_index]  
-
+    if use_lora and last_lora == repo_name:
         pipe.load_lora_weights(full_path_lora)
         cross_attention_kwargs = {"scale": lora_weight}
     else:
         pipe.unload_lora_weights()
 
-    return pipe(prompt=prompt,
-                    negative_prompt=negative_prompt,
-                    prompt_2=prompt_2,
-                    negative_prompt_2=negative_prompt_2,
-                    width=width,
-                    height=height,
-                    target_size=(target_width, target_height),
-                    original_size=(original_width, original_height),
-                    guidance_scale=guidance_scale,
-                    num_inference_steps=num_inference_steps,
-                    generator=generator,
-                    output_type='pil',
-                    cross_attention_kwargs=cross_attention_kwargs,
-                    ).images[0]
+    image = pipe(
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        prompt_2=prompt_2,
+        negative_prompt_2=negative_prompt_2,
+        width=width,
+        height=height,
+        target_size=(target_width, target_height),
+        original_size=(original_width, original_height),
+        guidance_scale=guidance_scale,
+        num_inference_steps=num_inference_steps,
+        generator=generator,
+        output_type='pil',
+        cross_attention_kwargs=cross_attention_kwargs,
+    ).images[0]
+    
+    last_lora = repo_name
+    gc.collect()
+    return image
 
 examples = [
     'face focus, cute, masterpiece, best quality, 1girl, green hair, sweater, looking at viewer, upper body, beanie, outdoors, night, turtleneck',
@@ -140,6 +164,7 @@ with open("lora.toml", "r") as file:
             "title": item["title"],
             "repo": item["repo"],
             "weights": item["weights"],
+            "multiplier": item["multiplier"] if "multiplier" in item else "1.0",
         }
         for item in data['data']
     ]
@@ -153,6 +178,7 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
         elem_id='duplicate-button',
         visible=os.getenv('SHOW_DUPLICATE_BUTTON') == '1'
     )
+    selected_state = gr.State()
     with gr.Row():
         with gr.Column(scale=1):
             with gr.Group():
@@ -193,9 +219,19 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
                 )
 
             with gr.Group():
-                lora_selection = gr.Dropdown(
-                    choices=[item["title"] for item in sdxl_loras],
-                    label="Select LoRA",
+                selector_info = gr.Markdown(
+                    value="### Click on a LoRA in the gallery to select it",
+                    visible=False,
+                    elem_id="selected_lora",
+                )
+                lora_selection = gr.Gallery(
+                    value=[(item["image"], item["title"]) for item in sdxl_loras],
+                    label="Animagine XL LoRA",
+                    allow_preview=False,
+                    columns=2,
+                    rows=2,
+                    elem_id="gallery",
+                    show_share_button=False,
                     visible=False,
                 )
                 lora_weight = gr.Slider(
@@ -314,7 +350,12 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
         fn=generate,
         cache_examples=CACHE_EXAMPLES
     )
-    
+    lora_selection.select(
+        update_selection,
+        outputs=[selector_info, selected_state, lora_weight],
+        queue=False,
+        show_progress=False,
+    )   
     use_prompt_2.change(
         fn=lambda x: gr.update(visible=x),
         inputs=use_prompt_2,
@@ -330,9 +371,9 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
         api_name=False,
     )
     use_lora.change(
-        fn=lambda x: (gr.update(visible=x), gr.update(visible=x)),
+        fn=lambda x: (gr.update(visible=x), gr.update(visible=x), gr.update(visible=x)),
         inputs=use_lora,
-        outputs=[lora_selection, lora_weight],
+        outputs=[selector_info, lora_selection, lora_weight],
         queue=False,
         api_name=False,
     )
@@ -381,10 +422,10 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
         guidance_scale,
         num_inference_steps,
         use_lora,
-        lora_selection,
         lora_weight,
         set_target_size,
-        set_original_size
+        set_original_size,
+        selected_state
     ]
     prompt.submit(
         fn=randomize_seed_fn,
@@ -447,4 +488,4 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
         api_name=False,
     )
 
-demo.queue(max_size=20).launch(debug=is_colab, share=is_colab)
+demo.queue(max_size=20).launch(debug=IS_COLAB, share=IS_COLAB)

@@ -32,7 +32,7 @@ if torch.cuda.is_available():
     pipe = DiffusionPipeline.from_pretrained(
         MODEL,
         torch_dtype=torch.float16,
-        custom_pipeline="lpw_stable_diffusion_xl",
+        custom_pipeline="lpw_stable_diffusion_xl.py",
         use_safetensors=True,
         variant='fp16')
 

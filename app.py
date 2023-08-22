@@ -50,12 +50,33 @@ if torch.cuda.is_available():
 else:
     pipe = None
 
-
+with open("sdxl_loras.toml", "r") as file:
+    data = toml.load(file)
+    sdxl_loras = [
+        {
+            "image": get_image_path(item["image"]),
+            "title": item["title"],
+            "repo": item["repo"],
+            "trigger_word": item.get("trigger_word", ""),
+            "weights": item["weights"],
+        }
+        for item in data['data']
+    ]
+saved_names = [hf_hub_download(item["repo"], item["weights"]) for item in sdxl_loras]
 def randomize_seed_fn(seed: int, randomize_seed: bool) -> int:
     if randomize_seed:
         seed = random.randint(0, MAX_SEED)
     return seed
 
+
+def get_image_path(base_path):
+    extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif']
+    for ext in extensions:
+        if os.path.exists(base_path + ext):
+            return base_path + ext
+    # If no match is found, return None or raise an error
+    return None
+    
 
 def generate(prompt: str,
              negative_prompt: str = '',
@@ -124,17 +145,16 @@ examples = [
     'face focus, bishounen, masterpiece, best quality, 1boy, green hair, sweater, looking at viewer, upper body, beanie, outdoors, night, turtleneck',
 ]
 
-with open("sdxl_loras.json", "r") as file:
-    data = json.load(file)
+with open("lora.toml", "r") as file:
+    data = toml.load(file)
     sdxl_loras = [
         {
-            "image": item["image"],
+            "image": get_image_path(item["image"]),
             "title": item["title"],
             "repo": item["repo"],
-            "trigger_word": item["trigger_word"],
             "weights": item["weights"],
         }
-        for item in data
+        for item in data['data']
     ]
 saved_names = [hf_hub_download(item["repo"], item["weights"]) for item in sdxl_loras]
 
@@ -284,19 +304,21 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
         with gr.Column(scale=2):
             with gr.Blocks():
                 run_button = gr.Button(
-                  label='Generate', 
-                  variant='primary'
+                    'Generate', 
+                    variant='primary'
                 )
             result = gr.Image(
                 label='Result', 
                 show_label=False
             )
 
-    gr.Examples(examples=examples,
-                inputs=prompt,
-                outputs=result,
-                fn=generate,
-                cache_examples=CACHE_EXAMPLES)
+    gr.Examples(
+        examples=examples,
+        inputs=prompt,
+        outputs=result,
+        fn=generate,
+        cache_examples=CACHE_EXAMPLES
+    )
     
     use_prompt_2.change(
         fn=lambda x: gr.update(visible=x),
@@ -416,4 +438,4 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
         api_name=False,
     )
 
-demo.queue(max_size=20).launch(share=True)
+demo.queue(max_size=20).launch(debug=is_colab, share=is_colab)

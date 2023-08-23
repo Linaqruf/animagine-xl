@@ -64,22 +64,18 @@ def get_image_path(base_path):
             return base_path + ext
     # If no match is found, return None or raise an error
     return None
-    
-last_lora = ""
+  
 
 def update_selection(selected_state: gr.SelectData):
     lora_repo = sdxl_loras[selected_state.index]["repo"]
-    updated_text = f"### Selected: [{lora_repo}](https://huggingface.co/{lora_repo})"
     lora_weight = sdxl_loras[selected_state.index]["multiplier"]
+    updated_text = f"{lora_repo}"
+   
     return (
         updated_text,
         selected_state,
         lora_weight,
     )
-
-def check_selected(selected_state):
-    if not selected_state:
-        raise gr.Error("You must select a LoRA")
     
 def generate(prompt: str,
              negative_prompt: str = '',
@@ -100,17 +96,11 @@ def generate(prompt: str,
              set_target_size: bool = False,
              set_original_size: bool = False,
              selected_state: str = "") -> PIL.Image.Image:
-    global last_lora, pipe
-
     generator = torch.Generator().manual_seed(seed)
 
-    if not selected_state:
-        raise gr.Error("You must select a LoRA")
-    
-    repo_name = sdxl_loras[selected_state.index]["repo"]
-    full_path_lora = saved_names[selected_state.index]
+    last_lora = ""
     cross_attention_kwargs = None
-
+    
     if not set_original_size:
         original_width = 4096
         original_height = 4096
@@ -125,11 +115,36 @@ def generate(prompt: str,
     if negative_prompt_2 == '':
         negative_prompt_2 = None
 
-    if use_lora and last_lora == repo_name:
-        pipe.load_lora_weights(full_path_lora)
-        cross_attention_kwargs = {"scale": lora_weight}
+    if use_lora:
+        repo_name = sdxl_loras[selected_state.index]["repo"]
+        full_path_lora = saved_names[selected_state.index]
+        weight_name = sdxl_loras[selected_state.index]["weights"]
+
+        if not selected_state:
+            raise gr.Error("You must select a LoRA")
+
+        if last_lora == "":
+            last_lora = repo_name
+
+        if last_lora != repo_name:
+            print(f"Unload {weight_name}")  
+            pipe.unload_lora_weights()
+            pipe.load_lora_weights(full_path_lora)
+            cross_attention_kwargs = {"scale": lora_weight}
+            print(f"Selected LoRA : {weight_name}")
+            print(f"Scale : {lora_weight}")
+        
+        if last_lora == repo_name:
+            pipe.load_lora_weights(full_path_lora)
+            cross_attention_kwargs = {"scale": lora_weight}
+            print(f"Selected LoRA : {weight_name}")
+            print(f"Scale : {lora_weight}")
+
+        last_lora = repo_name
+        gc.collect()
     else:
         pipe.unload_lora_weights()
+        last_lora = ""
 
     image = pipe(
         prompt=prompt,
@@ -146,9 +161,7 @@ def generate(prompt: str,
         output_type='pil',
         cross_attention_kwargs=cross_attention_kwargs,
     ).images[0]
-    
-    last_lora = repo_name
-    gc.collect()
+  
     return image
 
 examples = [
@@ -204,25 +217,23 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
                         value=False
                     )
 
-            with gr.Group():
+            with gr.Group(visible=False) as prompt2_group:
                 prompt_2 = gr.Text(
                     label='Prompt 2',
                     max_lines=1,
                     placeholder='Enter your prompt',
-                    visible=False,
                 )
                 negative_prompt_2 = gr.Text(
                     label='Negative prompt 2',
                     max_lines=1,
                     placeholder='Enter a negative prompt',
-                    visible=False,
                 )
 
-            with gr.Group():
-                selector_info = gr.Markdown(
-                    value="### Click on a LoRA in the gallery to select it",
-                    visible=False,
-                    elem_id="selected_lora",
+            with gr.Group(visible=False) as lora_group:
+                selector_info = gr.Text(
+                    label='Select LoRA',
+                    max_lines=1,
+                    value="No LoRA selected.",
                 )
                 lora_selection = gr.Gallery(
                     value=[(item["image"], item["title"]) for item in sdxl_loras],
@@ -230,17 +241,14 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
                     allow_preview=False,
                     columns=2,
                     rows=2,
-                    elem_id="gallery",
                     show_share_button=False,
-                    visible=False,
-                )
+                 )
                 lora_weight = gr.Slider(
                     label="LoRA weight",
                     minimum=0,
                     maximum=1,
                     step=0.1,
                     value=1,
-                    visible=False
                 )
 
             with gr.Group():
@@ -359,21 +367,14 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
     use_prompt_2.change(
         fn=lambda x: gr.update(visible=x),
         inputs=use_prompt_2,
-        outputs=prompt_2,
-        queue=False,
-        api_name=False,
-    )
-    use_prompt_2.change(
-        fn=lambda x: gr.update(visible=x),
-        inputs=use_prompt_2,
-        outputs=negative_prompt_2,
+        outputs=prompt2_group,
         queue=False,
         api_name=False,
     )
     use_lora.change(
-        fn=lambda x: (gr.update(visible=x), gr.update(visible=x), gr.update(visible=x)),
+        fn=lambda x: gr.update(visible=x),
         inputs=use_lora,
-        outputs=[selector_info, lora_selection, lora_weight],
+        outputs=lora_group,
         queue=False,
         api_name=False,
     )

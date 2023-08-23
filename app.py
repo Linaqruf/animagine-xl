@@ -238,9 +238,10 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
                 lora_selection = gr.Gallery(
                     value=[(item["image"], item["title"]) for item in sdxl_loras],
                     label="Animagine XL LoRA",
+                    show_label=False,
                     allow_preview=False,
                     columns=2,
-                    rows=2,
+                    elem_id="gallery",
                     show_share_button=False,
                  )
                 lora_weight = gr.Slider(

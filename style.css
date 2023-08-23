@@ -23,3 +23,7 @@ h1 {
     padding-top: 1rem;
   }
 }
+
+#gallery .grid-wrap{
+  min-height: 25%;
+}

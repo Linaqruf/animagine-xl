@@ -136,10 +136,6 @@ def generate(prompt: str,
         negative_prompt_2 = None
 
     if use_lora:
-        if network:
-            network.unapply_to()
-            network = None
-
         if not selected_state:
             raise Exception("You must select a LoRA")
 

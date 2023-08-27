@@ -86,7 +86,12 @@ def create_network(text_encoders, unet, state_dict, multiplier, device):
     network.to(device, dtype=unet.dtype)
     network.apply_to(multiplier=multiplier)
     return network
-    
+
+def backup_sd(state_dict):
+    for k, v in state_dict.items():
+        state_dict[k] = v.detach().cpu()
+    return state_dict
+
 def generate(prompt: str,
              negative_prompt: str = '',
              prompt_2: str = '',
@@ -111,6 +116,10 @@ def generate(prompt: str,
 
     network = None  # Initialize to None
     network_state = {"current_lora": None, "multiplier": None}
+    
+    _unet = None
+    _text_encoder = None
+    _text_encoder_2 = None
 
     if not set_original_size:
         original_width = 4096
@@ -126,14 +135,6 @@ def generate(prompt: str,
     if negative_prompt_2 == '':
         negative_prompt_2 = None
 
-    def create_network(text_encoders, unet, state_dict, multiplier, device):
-        network = create_network_from_weights(
-            text_encoders, unet, state_dict, multiplier=multiplier)
-        network.load_state_dict(state_dict)
-        network.to(device, dtype=unet.dtype)
-        network.apply_to(multiplier=multiplier)
-        return network
-        
     if use_lora:
         if not selected_state:
             raise Exception("You must select a LoRA")
@@ -141,6 +142,13 @@ def generate(prompt: str,
         repo_name = sdxl_loras[selected_state.index]["repo"]
         full_path_lora = saved_names[selected_state.index]
         weight_name = sdxl_loras[selected_state.index]["weights"]
+
+        _unet = pipe.unet.state_dict()
+        backup_sd(_unet)
+        _text_encoder = pipe.text_encoder.state_dict()
+        backup_sd(_text_encoder)
+        _text_encoder_2 = pipe.text_encoder_2.state_dict()
+        backup_sd(_text_encoder_2)
 
         lora_sd = load_file(full_path_lora)
         text_encoders = [pipe.text_encoder, pipe.text_encoder_2]
@@ -183,6 +191,11 @@ def generate(prompt: str,
     if network:
         network.unapply_to()
         network = None 
+
+    if _unet:
+        pipe.unet.load_state_dict(_unet)
+        pipe.text_encoder.load_state_dict(_text_encoder)
+        pipe.text_encoder_2.load_state_dict(_text_encoder_2)
 
     return image
 

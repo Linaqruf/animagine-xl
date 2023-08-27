@@ -88,10 +88,10 @@ def create_network(text_encoders, unet, state_dict, multiplier, device):
     network.apply_to(multiplier=multiplier)
     return network
 
-def backup_sd(state_dict):
-    for k, v in state_dict.items():
-        state_dict[k] = v.detach().cpu()
-    return state_dict
+# def backup_sd(state_dict):
+#     for k, v in state_dict.items():
+#         state_dict[k] = v.detach().cpu()
+#     return state_dict
 
 def generate(prompt: str,
              negative_prompt: str = '',
@@ -118,12 +118,12 @@ def generate(prompt: str,
     network = None  # Initialize to None
     network_state = {"current_lora": None, "multiplier": None}
 
-    _unet = pipe.unet.state_dict()
-    backup_sd(_unet)
-    _text_encoder = pipe.text_encoder.state_dict()
-    backup_sd(_text_encoder)
-    _text_encoder_2 = pipe.text_encoder_2.state_dict()
-    backup_sd(_text_encoder_2)
+    # _unet = pipe.unet.state_dict()
+    # backup_sd(_unet)
+    # _text_encoder = pipe.text_encoder.state_dict()
+    # backup_sd(_text_encoder)
+    # _text_encoder_2 = pipe.text_encoder_2.state_dict()
+    # backup_sd(_text_encoder_2)
      
     if not set_original_size:
         original_width = 4096
@@ -193,12 +193,12 @@ def generate(prompt: str,
         raise
 
     finally:
-        pipe.unet.load_state_dict(_unet)
-        pipe.text_encoder.load_state_dict(_text_encoder)
-        pipe.text_encoder_2.load_state_dict(_text_encoder_2)
+        # pipe.unet.load_state_dict(_unet)
+        # pipe.text_encoder.load_state_dict(_text_encoder)
+        # pipe.text_encoder_2.load_state_dict(_text_encoder_2)
 
-        del _unet, _text_encoder, _text_encoder_2
-        
+        # del _unet, _text_encoder, _text_encoder_2
+
         if network:
             network.unapply_to()
             network = None

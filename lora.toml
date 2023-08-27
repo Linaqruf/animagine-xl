@@ -4,10 +4,14 @@ title = "Pastel Style"
 repo = "Linaqruf/pastel-anime-xl-lora"
 weights = "pastel-anime-xl-latest.safetensors"
 multiplier = 0.6
+sample_prompt = "face focus, cute, masterpiece, best quality, 1girl, green hair, sweater, looking at viewer, upper body, beanie, outdoors, night, turtleneck"
+sample_negative = "Standard"
 
 [[data]]
 image = "images/amelia-watson"
 title = "Amelia Watson"
 repo = "Linaqruf/watson-amelia-xl-lora"
 weights = "watson_amelia_xl_lora_[hard].safetensors"
-multiplier = 0.6
+multiplier = 0.5
+sample_prompt = "close up, masterpiece, best quality, watson amelia, bokeh, cute, 1girl, solo, breasts, hair clip, medium hair, brown eyewear, white shirt, necktie, upper body, looking at viewer, blue eyes, closed mouth, leaf, plant"
+sample_negative = "Weighted"

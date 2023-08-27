@@ -11,6 +11,9 @@ import PIL.Image
 import torch
 import utils
 import gc
+from safetensors.torch import load_file
+import lora_diffusers
+from lora_diffusers import LoRANetwork, create_network_from_weights
 from huggingface_hub import hf_hub_download
 from diffusers.models import AutoencoderKL
 from diffusers import DiffusionPipeline, EulerAncestralDiscreteScheduler
@@ -64,7 +67,6 @@ def get_image_path(base_path):
             return base_path + ext
     # If no match is found, return None or raise an error
     return None
-  
 
 def update_selection(selected_state: gr.SelectData):
     lora_repo = sdxl_loras[selected_state.index]["repo"]
@@ -76,6 +78,14 @@ def update_selection(selected_state: gr.SelectData):
         selected_state,
         lora_weight,
     )
+
+def create_network(text_encoders, unet, state_dict, multiplier, device):
+    network = create_network_from_weights(
+        text_encoders, unet, state_dict, multiplier=multiplier)
+    network.load_state_dict(state_dict)
+    network.to(device, dtype=unet.dtype)
+    network.apply_to(multiplier=multiplier)
+    return network
     
 def generate(prompt: str,
              negative_prompt: str = '',
@@ -96,55 +106,60 @@ def generate(prompt: str,
              set_target_size: bool = False,
              set_original_size: bool = False,
              selected_state: str = "") -> PIL.Image.Image:
+
     generator = torch.Generator().manual_seed(seed)
 
-    last_lora = ""
-    cross_attention_kwargs = None
-    
+    network = None  # Initialize to None
+    network_state = {"current_lora": None, "multiplier": None}
+
     if not set_original_size:
         original_width = 4096
         original_height = 4096
     if not set_target_size:
         target_width = width
-        target_height = height   
+        target_height = height
     if negative_prompt == '':
-        negative_prompt = None  # type: ignore
+        negative_prompt = None
     if not use_prompt_2:
-        prompt_2 = None  # type: ignore
-        negative_prompt_2 = None  # type: ignore
+        prompt_2 = None
+        negative_prompt_2 = None
     if negative_prompt_2 == '':
         negative_prompt_2 = None
 
+    def create_network(text_encoders, unet, state_dict, multiplier, device):
+        network = create_network_from_weights(
+            text_encoders, unet, state_dict, multiplier=multiplier)
+        network.load_state_dict(state_dict)
+        network.to(device, dtype=unet.dtype)
+        network.apply_to(multiplier=multiplier)
+        return network
+        
     if use_lora:
+        if not selected_state:
+            raise Exception("You must select a LoRA")
+
         repo_name = sdxl_loras[selected_state.index]["repo"]
         full_path_lora = saved_names[selected_state.index]
         weight_name = sdxl_loras[selected_state.index]["weights"]
 
-        if not selected_state:
-            raise gr.Error("You must select a LoRA")
+        lora_sd = load_file(full_path_lora)
+        text_encoders = [pipe.text_encoder, pipe.text_encoder_2]
 
-        if last_lora == "":
-            last_lora = repo_name
+        if network_state["current_lora"] != repo_name:
+            network = create_network(
+                text_encoders, pipe.unet, lora_sd, lora_weight, device)
+            network_state["current_lora"] = repo_name
+            network_state["multiplier"] = lora_weight
 
-        if last_lora != repo_name:
-            print(f"Unload {weight_name}")  
-            pipe.unload_lora_weights()
-            pipe.load_lora_weights(full_path_lora)
-            cross_attention_kwargs = {"scale": lora_weight}
-            print(f"Selected LoRA : {weight_name}")
-            print(f"Scale : {lora_weight}")
-        
-        if last_lora == repo_name:
-            pipe.load_lora_weights(full_path_lora)
-            cross_attention_kwargs = {"scale": lora_weight}
-            print(f"Selected LoRA : {weight_name}")
-            print(f"Scale : {lora_weight}")
-
-        last_lora = repo_name
-        gc.collect()
+        elif network_state["multiplier"] != lora_weight:
+            network = create_network(
+                text_encoders, pipe.unet, lora_sd, lora_weight, device)
+            network_state["multiplier"] = lora_weight
     else:
-        pipe.unload_lora_weights()
-        last_lora = ""
+        if network:
+            network.unapply_to()
+            network = None
+            network_state = {"current_lora": None, "multiplier": None}
 
     image = pipe(
         prompt=prompt,
@@ -159,9 +174,16 @@ def generate(prompt: str,
         num_inference_steps=num_inference_steps,
         generator=generator,
         output_type='pil',
-        cross_attention_kwargs=cross_attention_kwargs,
     ).images[0]
-  
+
+    if use_lora:
+        del lora_sd, text_encoders
+        gc.collect()
+
+    if network:
+        network.unapply_to()
+        network = None 
+
     return image
 
 examples = [
@@ -220,18 +242,18 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
             with gr.Group(visible=False) as prompt2_group:
                 prompt_2 = gr.Text(
                     label='Prompt 2',
-                    max_lines=1,
+                    max_lines=5,
                     placeholder='Enter your prompt',
                 )
                 negative_prompt_2 = gr.Text(
                     label='Negative prompt 2',
-                    max_lines=1,
+                    max_lines=5,
                     placeholder='Enter a negative prompt',
                 )
 
             with gr.Group(visible=False) as lora_group:
                 selector_info = gr.Text(
-                    label='Select LoRA',
+                    label='Selected LoRA',
                     max_lines=1,
                     value="No LoRA selected.",
                 )
@@ -245,7 +267,7 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
                     show_share_button=False,
                  )
                 lora_weight = gr.Slider(
-                    label="LoRA weight",
+                    label="Multiplier",
                     minimum=0,
                     maximum=1,
                     step=0.1,

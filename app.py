@@ -72,12 +72,17 @@ def get_image_path(base_path):
 def update_selection(selected_state: gr.SelectData):
     lora_repo = sdxl_loras[selected_state.index]["repo"]
     lora_weight = sdxl_loras[selected_state.index]["multiplier"]
-    updated_text = f"{lora_repo}"
-   
+    updated_selected_info = f"{lora_repo}"
+    updated_prompt = sdxl_loras[selected_state.index]["sample_prompt"]
+    updated_negative = sdxl_loras[selected_state.index]["sample_negative"]
+
     return (
-        updated_text,
+        updated_selected_info,
         selected_state,
         lora_weight,
+        updated_prompt,
+        negative_presets_dict.get(updated_negative, ''),
+        updated_negative
     )
 
 def create_network(text_encoders, unet, state_dict, multiplier, device):
@@ -212,6 +217,13 @@ examples = [
     'face focus, bishounen, masterpiece, best quality, 1boy, green hair, sweater, looking at viewer, upper body, beanie, outdoors, night, turtleneck',
 ]
 
+negative_presets_dict = {
+  "None" : "",
+  "Standard" : "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry",
+  "Weighted" : "(low quality, worst quality:1.2), 3d, watermark, signature, ugly, poorly drawn, bad image, bad artist, looking back, from behind",
+
+}
+
 with open("lora.toml", "r") as file:
     data = toml.load(file)
     sdxl_loras = [
@@ -221,6 +233,8 @@ with open("lora.toml", "r") as file:
             "repo": item["repo"],
             "weights": item["weights"],
             "multiplier": item["multiplier"] if "multiplier" in item else "1.0",
+            "sample_prompt": item["sample_prompt"],
+            "sample_negative": item["sample_negative"],
         }
         for item in data['data']
     ]
@@ -249,6 +263,13 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
                     placeholder='Enter a negative prompt',
                     value='lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry',
                 )
+                with gr.Accordion(label='Negative Presets', open=False):
+                    negative_presets = gr.Dropdown(
+                        label='Negative Presets',
+                        show_label=False,
+                        choices=list(negative_presets_dict.keys()),
+                        value="Standard",
+                    )
 
                 with gr.Row():
                     use_prompt_2 = gr.Checkbox(
@@ -404,7 +425,7 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
     )
     lora_selection.select(
         update_selection,
-        outputs=[selector_info, selected_state, lora_weight],
+        outputs=[selector_info, selected_state, lora_weight, prompt, negative_prompt, negative_presets],
         queue=False,
         show_progress=False,
     )   
@@ -412,6 +433,13 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
         fn=lambda x: gr.update(visible=x),
         inputs=use_prompt_2,
         outputs=prompt2_group,
+        queue=False,
+        api_name=False,
+    )
+    negative_presets.change(
+        fn=lambda x: gr.update(value=negative_presets_dict.get(x, '')),
+        inputs=negative_presets,
+        outputs=negative_prompt,
         queue=False,
         api_name=False,
     )

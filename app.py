@@ -51,6 +51,7 @@ if torch.cuda.is_available():
         pipe.unet = torch.compile(pipe.unet,
                                   mode='reduce-overhead',
                                   fullgraph=True)
+
 else:
     pipe = None
 
@@ -116,11 +117,14 @@ def generate(prompt: str,
 
     network = None  # Initialize to None
     network_state = {"current_lora": None, "multiplier": None}
-    
-    _unet = None
-    _text_encoder = None
-    _text_encoder_2 = None
 
+    _unet = pipe.unet.state_dict()
+    backup_sd(_unet)
+    _text_encoder = pipe.text_encoder.state_dict()
+    backup_sd(_text_encoder)
+    _text_encoder_2 = pipe.text_encoder_2.state_dict()
+    backup_sd(_text_encoder_2)
+     
     if not set_original_size:
         original_width = 4096
         original_height = 4096
@@ -143,13 +147,6 @@ def generate(prompt: str,
         full_path_lora = saved_names[selected_state.index]
         weight_name = sdxl_loras[selected_state.index]["weights"]
 
-        _unet = pipe.unet.state_dict()
-        backup_sd(_unet)
-        _text_encoder = pipe.text_encoder.state_dict()
-        backup_sd(_text_encoder)
-        _text_encoder_2 = pipe.text_encoder_2.state_dict()
-        backup_sd(_text_encoder_2)
-
         lora_sd = load_file(full_path_lora)
         text_encoders = [pipe.text_encoder, pipe.text_encoder_2]
 
@@ -169,35 +166,46 @@ def generate(prompt: str,
             network = None
             network_state = {"current_lora": None, "multiplier": None}
 
-    image = pipe(
-        prompt=prompt,
-        negative_prompt=negative_prompt,
-        prompt_2=prompt_2,
-        negative_prompt_2=negative_prompt_2,
-        width=width,
-        height=height,
-        target_size=(target_width, target_height),
-        original_size=(original_width, original_height),
-        guidance_scale=guidance_scale,
-        num_inference_steps=num_inference_steps,
-        generator=generator,
-        output_type='pil',
-    ).images[0]
+    try:
+        image = pipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            prompt_2=prompt_2,
+            negative_prompt_2=negative_prompt_2,
+            width=width,
+            height=height,
+            target_size=(target_width, target_height),
+            original_size=(original_width, original_height),
+            guidance_scale=guidance_scale,
+            num_inference_steps=num_inference_steps,
+            generator=generator,
+            output_type='pil',
+        ).images[0]
 
-    if use_lora:
-        del lora_sd, text_encoders
-        gc.collect()
+        if network:
+            network.unapply_to()
+            network = None
 
-    if network:
-        network.unapply_to()
-        network = None 
+        return image
 
-    if _unet:
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        raise
+
+    finally:
         pipe.unet.load_state_dict(_unet)
         pipe.text_encoder.load_state_dict(_text_encoder)
         pipe.text_encoder_2.load_state_dict(_text_encoder_2)
 
-    return image
+        del _unet, _text_encoder, _text_encoder_2
+        
+        if network:
+            network.unapply_to()
+            network = None
+
+        if use_lora:
+            del lora_sd, text_encoders
+            gc.collect()
 
 examples = [
     'face focus, cute, masterpiece, best quality, 1girl, green hair, sweater, looking at viewer, upper body, beanie, outdoors, night, turtleneck',

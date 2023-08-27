@@ -1,7 +1,13 @@
 [[data]]
 image = "images/pastel-style"
-title = "Pastel Anime Style"
+title = "Pastel Style"
 repo = "Linaqruf/pastel-anime-xl-lora"
 weights = "pastel-anime-xl-latest.safetensors"
-multiplier = 0.5
+multiplier = 0.6
 
+[[data]]
+image = "images/amelia-watson"
+title = "Amelia Watson"
+repo = "Linaqruf/watson-amelia-xl-lora"
+weights = "watson_amelia_xl_lora_[hard].safetensors"
+multiplier = 0.6

@@ -3,6 +3,11 @@ h1 {
   font-size: 10vw; /* relative to the viewport width */
 }
 
+h2 {
+  text-align: center;
+  font-size: 10vw; /* relative to the viewport width */
+}
+
 #duplicate-button {
   margin: auto;
   color: #fff;
@@ -26,4 +31,30 @@ h1 {
 
 #gallery .grid-wrap{
   min-height: 25%;
+}
+
+#title-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh; /* Adjust this value to position the title vertically */
+  }
+
+#title {
+    font-size: 3em;
+    text-align: center;
+    color: #333;
+    font-family: 'Helvetica Neue', sans-serif;
+    text-transform: uppercase;
+    background: transparent;
+  }
+
+#title span {
+    background: -webkit-linear-gradient(45deg, #4EACEF, #28b485);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+#subtitle {
+  text-align: center;
 }

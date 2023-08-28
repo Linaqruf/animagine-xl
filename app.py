@@ -220,7 +220,7 @@ examples = [
 negative_presets_dict = {
   "None" : "",
   "Standard" : "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry",
-  "Weighted" : "(low quality, worst quality:1.2), 3d, watermark, signature, ugly, poorly drawn, bad image, bad artist, looking back, from behind",
+  "Weighted" : "(low quality, worst quality:1.2), 3d, watermark, signature, ugly, poorly drawn, bad image",
 
 }
 
@@ -312,7 +312,7 @@ with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
                     label="Multiplier",
                     minimum=0,
                     maximum=1,
-                    step=0.1,
+                    step=0.05,
                     value=1,
                 )
 

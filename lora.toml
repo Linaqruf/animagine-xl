@@ -8,10 +8,28 @@ sample_prompt = "face focus, cute, masterpiece, best quality, 1girl, green hair,
 sample_negative = "Standard"
 
 [[data]]
+image = "images/ufotable-style"
+title = "Ufotable Style"
+repo = "Linaqruf/ufotable-xl-lora"
+weights = "ufotable_style_xl.safetensors"
+multiplier = 0.5
+sample_prompt = "face focus, cute, masterpiece, high quality, bokeh, 8k, beautiful lighting, tohsaka rin, 1girl, solo, blue eyes, black hair, twin tail, parted bangs, white shirt, camisole, white camisole, spaghetti strap, sleeveless, sitting, cowboy shot, bedroom, indoors, closed mouth, black ribbon, blush, looking at viewer, dynamic angle"
+sample_negative = "Weighted"
+
+[[data]]
 image = "images/amelia-watson"
 title = "Amelia Watson"
-repo = "Linaqruf/watson-amelia-xl-lora"
-weights = "watson_amelia_xl_lora_[hard].safetensors"
+repo = "Linaqruf/amelia-watson-xl-lora"
+weights = "amelia_watson_xl_lora.safetensors"
 multiplier = 0.5
-sample_prompt = "close up, masterpiece, best quality, watson amelia, bokeh, cute, 1girl, solo, breasts, hair clip, medium hair, brown eyewear, white shirt, necktie, upper body, looking at viewer, blue eyes, closed mouth, leaf, plant"
+sample_prompt = "close up, masterpiece, best quality, amelia watson, bokeh, cute, 1girl, solo, hair clip, medium hair, brown eyewear, white shirt, red necktie, upper body, looking at viewer, blue eyes, closed mouth, leaf, plant"
+sample_negative = "Weighted"
+
+[[data]]
+image = "images/furina"
+title = "Furina"
+repo = "Linaqruf/furina-xl-lora"
+weights = "furina_xl.safetensors"
+multiplier = 0.5
+sample_prompt = "face focus, cute, masterpiece, best quality, furina, bokeh, 1girl, flower, solo, outdoors, smile, looking at viewer, jewelry, earrings, blue jacket, long sleeves, frill, gloves, petals, bangs, blush, sky, white hair, tree, cowboy shot, bow, sunset, blue bow, blue eyes, blue hair, blue headwear, bow, hat, hat bow,, parted lips, standing, field, breasts, pink flower, cloud, red flower, grass, medium hair, black bowtie, floating hair, multicolored hair, short hair, streaked hair"
 sample_negative = "Weighted"

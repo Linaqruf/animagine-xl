@@ -12,8 +12,8 @@ image = "images/ufotable-style"
 title = "Ufotable Style"
 repo = "Linaqruf/ufotable-xl-lora"
 weights = "ufotable_style_xl.safetensors"
-multiplier = 0.5
-sample_prompt = "face focus, cute, masterpiece, high quality, bokeh, 8k, beautiful lighting, tohsaka rin, 1girl, solo, blue eyes, black hair, twin tail, parted bangs, white shirt, camisole, white camisole, spaghetti strap, sleeveless, sitting, cowboy shot, bedroom, indoors, closed mouth, black ribbon, blush, looking at viewer, dynamic angle"
+multiplier = 0.4
+sample_prompt = "face focus, cute, masterpiece, best quality, bokeh, breasts, 1girl, solo, looking at viewer, long hair, white ribbon, smile, school uniform,  bangs, black hair ribbon, swept bangs, sailor collar, serafuku, blush, ribbon, ahoge, brown eyes, long sleeves, collarbone, parted lips, sweater"
 sample_negative = "Weighted"
 
 [[data]]
@@ -22,7 +22,7 @@ title = "Amelia Watson"
 repo = "Linaqruf/amelia-watson-xl-lora"
 weights = "amelia_watson_xl.safetensors"
 multiplier = 0.5
-sample_prompt = "close up, masterpiece, best quality, amelia watson, bokeh, cute, 1girl, solo, hair clip, medium hair, brown eyewear, white shirt, red necktie, upper body, looking at viewer, blue eyes, closed mouth, leaf, plant"
+sample_prompt = "face focus, masterpiece, best quality, amelia watson, bokeh, cute, 1girl, solo, monocle hair ornament, medium hair, brown eyewear, white shirt, red necktie, upper body, looking at viewer, blue eyes, leaf, plant"
 sample_negative = "Weighted"
 
 [[data]]
@@ -30,6 +30,6 @@ image = "images/furina"
 title = "Furina"
 repo = "Linaqruf/furina-xl-lora"
 weights = "furina_xl.safetensors"
-multiplier = 0.5
-sample_prompt = "face focus, cute, masterpiece, best quality, furina, bokeh, 1girl, flower, solo, outdoors, smile, looking at viewer, jewelry, earrings, blue jacket, long sleeves, frill, gloves, petals, bangs, blush, sky, white hair, tree, cowboy shot, bow, sunset, blue bow, blue eyes, blue hair, blue headwear, bow, hat, hat bow,, parted lips, standing, field, breasts, pink flower, cloud, red flower, grass, medium hair, black bowtie, floating hair, multicolored hair, short hair, streaked hair"
+multiplier = 0.7
+sample_prompt = "face focus, masterpiece, best quality, furina, bokeh, cute, 1girl, ahoge, ascot, blue eyes, blue gemstone, blue hair, blue headwear, blue jacket, gem, hair between eyes, hat, jacket, light blue hair, looking at viewer, multicolored hair, closed mouth, solo, top hat, white hair"
 sample_negative = "Weighted"

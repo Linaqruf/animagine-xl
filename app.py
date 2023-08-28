@@ -18,7 +18,7 @@ from huggingface_hub import hf_hub_download
 from diffusers.models import AutoencoderKL
 from diffusers import DiffusionPipeline, EulerAncestralDiscreteScheduler
 
-DESCRIPTION = '# Animagine XL'
+DESCRIPTION = 'Animagine XL'
 if not torch.cuda.is_available():
     DESCRIPTION += '\n<p>Running on CPU 🥶 This demo does not work on CPU.</p>'
 IS_COLAB = utils.is_google_colab()
@@ -220,7 +220,7 @@ examples = [
 negative_presets_dict = {
   "None" : "",
   "Standard" : "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry",
-  "Weighted" : "(low quality, worst quality:1.2), 3d, watermark, signature, ugly, poorly drawn, bad image, bad artist",
+  "Weighted" : "(low quality, worst quality:1.2), 3d, watermark, signature, ugly, poorly drawn, bad image",
 
 }
 
@@ -242,7 +242,14 @@ saved_names = [hf_hub_download(item["repo"], item["weights"]) for item in sdxl_l
 
 
 with gr.Blocks(css='style.css', theme='NoCrypt/miku@1.2.1') as demo:
-    gr.Markdown(DESCRIPTION)
+    title = gr.HTML(
+        f"""<h1><span>{DESCRIPTION}</span></h1>""",
+        elem_id="title",
+    )
+    gr.Markdown(
+        f"""Gradio demo for [Linaqruf/animagine-xl](https://huggingface.co/spaces/Linaqruf/Animagine-XL)""",
+        elem_id="subtitle",
+    )
     gr.DuplicateButton(
         value='Duplicate Space for private use',
         elem_id='duplicate-button',

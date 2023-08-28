@@ -220,7 +220,7 @@ examples = [
 negative_presets_dict = {
   "None" : "",
   "Standard" : "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry",
-  "Weighted" : "(low quality, worst quality:1.2), 3d, watermark, signature, ugly, poorly drawn, bad image",
+  "Weighted" : "(low quality, worst quality:1.2), 3d, watermark, signature, ugly, poorly drawn, bad image, bad artist",
 
 }
 

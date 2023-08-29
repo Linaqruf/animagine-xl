@@ -15,7 +15,11 @@ from transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPTokeniz
 
 from diffusers import DiffusionPipeline, StableDiffusionXLPipeline
 from diffusers.image_processor import VaeImageProcessor
-from diffusers.loaders import FromSingleFileMixin, LoraLoaderMixin, TextualInversionLoaderMixin
+from diffusers.loaders import (
+    FromSingleFileMixin,
+    LoraLoaderMixin,
+    TextualInversionLoaderMixin,
+)
 from diffusers.models import AutoencoderKL, UNet2DConditionModel
 from diffusers.models.attention_processor import (
     AttnProcessor2_0,
@@ -36,7 +40,9 @@ from diffusers.utils import (
 
 
 if is_invisible_watermark_available():
-    from diffusers.pipelines.stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
+    from diffusers.pipelines.stable_diffusion_xl.watermark import (
+        StableDiffusionXLWatermarker,
+    )
 
 
 def parse_prompt_attention(text):
@@ -176,7 +182,9 @@ def get_prompts_tokens_with_weights(clip_tokenizer: CLIPTokenizer, prompt: str):
     text_tokens, text_weights = [], []
     for word, weight in texts_and_weights:
         # tokenize and discard the starting and the ending token
-        token = clip_tokenizer(word, truncation=False).input_ids[1:-1]  # so that tokenize whatever length prompt
+        token = clip_tokenizer(word, truncation=False).input_ids[
+            1:-1
+        ]  # so that tokenize whatever length prompt
         # the returned token is a 1d list: [320, 1125, 539, 320]
 
         # merge the new tokens to the all tokens holder: text_tokens
@@ -273,14 +281,22 @@ def get_weighted_text_embeddings_sdxl(
     eos = pipe.tokenizer.eos_token_id
 
     # tokenizer 1
-    prompt_tokens, prompt_weights = get_prompts_tokens_with_weights(pipe.tokenizer, prompt)
+    prompt_tokens, prompt_weights = get_prompts_tokens_with_weights(
+        pipe.tokenizer, prompt
+    )
 
-    neg_prompt_tokens, neg_prompt_weights = get_prompts_tokens_with_weights(pipe.tokenizer, neg_prompt)
+    neg_prompt_tokens, neg_prompt_weights = get_prompts_tokens_with_weights(
+        pipe.tokenizer, neg_prompt
+    )
 
     # tokenizer 2
-    prompt_tokens_2, prompt_weights_2 = get_prompts_tokens_with_weights(pipe.tokenizer_2, prompt)
+    prompt_tokens_2, prompt_weights_2 = get_prompts_tokens_with_weights(
+        pipe.tokenizer_2, prompt
+    )
 
-    neg_prompt_tokens_2, neg_prompt_weights_2 = get_prompts_tokens_with_weights(pipe.tokenizer_2, neg_prompt)
+    neg_prompt_tokens_2, neg_prompt_weights_2 = get_prompts_tokens_with_weights(
+        pipe.tokenizer_2, neg_prompt
+    )
 
     # padding the shorter one for prompt set 1
     prompt_token_len = len(prompt_tokens)
@@ -288,12 +304,20 @@ def get_weighted_text_embeddings_sdxl(
 
     if prompt_token_len > neg_prompt_token_len:
         # padding the neg_prompt with eos token
-        neg_prompt_tokens = neg_prompt_tokens + [eos] * abs(prompt_token_len - neg_prompt_token_len)
-        neg_prompt_weights = neg_prompt_weights + [1.0] * abs(prompt_token_len - neg_prompt_token_len)
+        neg_prompt_tokens = neg_prompt_tokens + [eos] * abs(
+            prompt_token_len - neg_prompt_token_len
+        )
+        neg_prompt_weights = neg_prompt_weights + [1.0] * abs(
+            prompt_token_len - neg_prompt_token_len
+        )
     else:
         # padding the prompt
-        prompt_tokens = prompt_tokens + [eos] * abs(prompt_token_len - neg_prompt_token_len)
-        prompt_weights = prompt_weights + [1.0] * abs(prompt_token_len - neg_prompt_token_len)
+        prompt_tokens = prompt_tokens + [eos] * abs(
+            prompt_token_len - neg_prompt_token_len
+        )
+        prompt_weights = prompt_weights + [1.0] * abs(
+            prompt_token_len - neg_prompt_token_len
+        )
 
     # padding the shorter one for token set 2
     prompt_token_len_2 = len(prompt_tokens_2)
@@ -301,17 +325,27 @@ def get_weighted_text_embeddings_sdxl(
 
     if prompt_token_len_2 > neg_prompt_token_len_2:
         # padding the neg_prompt with eos token
-        neg_prompt_tokens_2 = neg_prompt_tokens_2 + [eos] * abs(prompt_token_len_2 - neg_prompt_token_len_2)
-        neg_prompt_weights_2 = neg_prompt_weights_2 + [1.0] * abs(prompt_token_len_2 - neg_prompt_token_len_2)
+        neg_prompt_tokens_2 = neg_prompt_tokens_2 + [eos] * abs(
+            prompt_token_len_2 - neg_prompt_token_len_2
+        )
+        neg_prompt_weights_2 = neg_prompt_weights_2 + [1.0] * abs(
+            prompt_token_len_2 - neg_prompt_token_len_2
+        )
     else:
         # padding the prompt
-        prompt_tokens_2 = prompt_tokens_2 + [eos] * abs(prompt_token_len_2 - neg_prompt_token_len_2)
-        prompt_weights_2 = prompt_weights + [1.0] * abs(prompt_token_len_2 - neg_prompt_token_len_2)
+        prompt_tokens_2 = prompt_tokens_2 + [eos] * abs(
+            prompt_token_len_2 - neg_prompt_token_len_2
+        )
+        prompt_weights_2 = prompt_weights + [1.0] * abs(
+            prompt_token_len_2 - neg_prompt_token_len_2
+        )
 
     embeds = []
     neg_embeds = []
 
-    prompt_token_groups, prompt_weight_groups = group_tokens_and_weights(prompt_tokens.copy(), prompt_weights.copy())
+    prompt_token_groups, prompt_weight_groups = group_tokens_and_weights(
+        prompt_tokens.copy(), prompt_weights.copy()
+    )
 
     neg_prompt_token_groups, neg_prompt_weight_groups = group_tokens_and_weights(
         neg_prompt_tokens.copy(), neg_prompt_weights.copy()
@@ -328,53 +362,82 @@ def get_weighted_text_embeddings_sdxl(
     # get prompt embeddings one by one is not working.
     for i in range(len(prompt_token_groups)):
         # get positive prompt embeddings with weights
-        token_tensor = torch.tensor([prompt_token_groups[i]], dtype=torch.long, device=pipe.device)
-        weight_tensor = torch.tensor(prompt_weight_groups[i], dtype=torch.float16, device=pipe.device)
+        token_tensor = torch.tensor(
+            [prompt_token_groups[i]], dtype=torch.long, device=pipe.device
+        )
+        weight_tensor = torch.tensor(
+            prompt_weight_groups[i], dtype=torch.float16, device=pipe.device
+        )
 
-        token_tensor_2 = torch.tensor([prompt_token_groups_2[i]], dtype=torch.long, device=pipe.device)
+        token_tensor_2 = torch.tensor(
+            [prompt_token_groups_2[i]], dtype=torch.long, device=pipe.device
+        )
 
         # use first text encoder
-        prompt_embeds_1 = pipe.text_encoder(token_tensor.to(pipe.device), output_hidden_states=True)
+        prompt_embeds_1 = pipe.text_encoder(
+            token_tensor.to(pipe.device), output_hidden_states=True
+        )
         prompt_embeds_1_hidden_states = prompt_embeds_1.hidden_states[-2]
 
         # use second text encoder
-        prompt_embeds_2 = pipe.text_encoder_2(token_tensor_2.to(pipe.device), output_hidden_states=True)
+        prompt_embeds_2 = pipe.text_encoder_2(
+            token_tensor_2.to(pipe.device), output_hidden_states=True
+        )
         prompt_embeds_2_hidden_states = prompt_embeds_2.hidden_states[-2]
         pooled_prompt_embeds = prompt_embeds_2[0]
 
-        prompt_embeds_list = [prompt_embeds_1_hidden_states, prompt_embeds_2_hidden_states]
+        prompt_embeds_list = [
+            prompt_embeds_1_hidden_states,
+            prompt_embeds_2_hidden_states,
+        ]
         token_embedding = torch.concat(prompt_embeds_list, dim=-1).squeeze(0)
 
         for j in range(len(weight_tensor)):
             if weight_tensor[j] != 1.0:
                 token_embedding[j] = (
-                    token_embedding[-1] + (token_embedding[j] - token_embedding[-1]) * weight_tensor[j]
+                    token_embedding[-1]
+                    + (token_embedding[j] - token_embedding[-1]) * weight_tensor[j]
                 )
 
         token_embedding = token_embedding.unsqueeze(0)
         embeds.append(token_embedding)
 
         # get negative prompt embeddings with weights
-        neg_token_tensor = torch.tensor([neg_prompt_token_groups[i]], dtype=torch.long, device=pipe.device)
-        neg_token_tensor_2 = torch.tensor([neg_prompt_token_groups_2[i]], dtype=torch.long, device=pipe.device)
-        neg_weight_tensor = torch.tensor(neg_prompt_weight_groups[i], dtype=torch.float16, device=pipe.device)
+        neg_token_tensor = torch.tensor(
+            [neg_prompt_token_groups[i]], dtype=torch.long, device=pipe.device
+        )
+        neg_token_tensor_2 = torch.tensor(
+            [neg_prompt_token_groups_2[i]], dtype=torch.long, device=pipe.device
+        )
+        neg_weight_tensor = torch.tensor(
+            neg_prompt_weight_groups[i], dtype=torch.float16, device=pipe.device
+        )
 
         # use first text encoder
-        neg_prompt_embeds_1 = pipe.text_encoder(neg_token_tensor.to(pipe.device), output_hidden_states=True)
+        neg_prompt_embeds_1 = pipe.text_encoder(
+            neg_token_tensor.to(pipe.device), output_hidden_states=True
+        )
         neg_prompt_embeds_1_hidden_states = neg_prompt_embeds_1.hidden_states[-2]
 
         # use second text encoder
-        neg_prompt_embeds_2 = pipe.text_encoder_2(neg_token_tensor_2.to(pipe.device), output_hidden_states=True)
+        neg_prompt_embeds_2 = pipe.text_encoder_2(
+            neg_token_tensor_2.to(pipe.device), output_hidden_states=True
+        )
         neg_prompt_embeds_2_hidden_states = neg_prompt_embeds_2.hidden_states[-2]
         negative_pooled_prompt_embeds = neg_prompt_embeds_2[0]
 
-        neg_prompt_embeds_list = [neg_prompt_embeds_1_hidden_states, neg_prompt_embeds_2_hidden_states]
+        neg_prompt_embeds_list = [
+            neg_prompt_embeds_1_hidden_states,
+            neg_prompt_embeds_2_hidden_states,
+        ]
         neg_token_embedding = torch.concat(neg_prompt_embeds_list, dim=-1).squeeze(0)
 
         for z in range(len(neg_weight_tensor)):
             if neg_weight_tensor[z] != 1.0:
                 neg_token_embedding[z] = (
-                    neg_token_embedding[-1] + (neg_token_embedding[z] - neg_token_embedding[-1]) * neg_weight_tensor[z]
+                    neg_token_embedding[-1]
+                    + (neg_token_embedding[z] - neg_token_embedding[-1])
+                    * neg_weight_tensor[z]
                 )
 
         neg_token_embedding = neg_token_embedding.unsqueeze(0)
@@ -383,7 +446,12 @@ def get_weighted_text_embeddings_sdxl(
     prompt_embeds = torch.cat(embeds, dim=1)
     negative_prompt_embeds = torch.cat(neg_embeds, dim=1)
 
-    return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
+    return (
+        prompt_embeds,
+        negative_prompt_embeds,
+        pooled_prompt_embeds,
+        negative_pooled_prompt_embeds,
+    )
 
 
 # -------------------------------------------------------------------------------------------------------------------------------
@@ -430,16 +498,22 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     Rescale `noise_cfg` according to `guidance_rescale`. Based on findings of [Common Diffusion Noise Schedules and
     Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf). See Section 3.4
     """
-    std_text = noise_pred_text.std(dim=list(range(1, noise_pred_text.ndim)), keepdim=True)
+    std_text = noise_pred_text.std(
+        dim=list(range(1, noise_pred_text.ndim)), keepdim=True
+    )
     std_cfg = noise_cfg.std(dim=list(range(1, noise_cfg.ndim)), keepdim=True)
     # rescale the results from guidance (fixes overexposure)
     noise_pred_rescaled = noise_cfg * (std_text / std_cfg)
     # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
-    noise_cfg = guidance_rescale * noise_pred_rescaled + (1 - guidance_rescale) * noise_cfg
+    noise_cfg = (
+        guidance_rescale * noise_pred_rescaled + (1 - guidance_rescale) * noise_cfg
+    )
     return noise_cfg
 
 
-class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, LoraLoaderMixin):
+class SDXLLongPromptWeightingPipeline(
+    DiffusionPipeline, FromSingleFileMixin, LoraLoaderMixin
+):
     r"""
     Pipeline for text-to-image generation using Stable Diffusion XL.
 
@@ -501,12 +575,18 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
             unet=unet,
             scheduler=scheduler,
         )
-        self.register_to_config(force_zeros_for_empty_prompt=force_zeros_for_empty_prompt)
+        self.register_to_config(
+            force_zeros_for_empty_prompt=force_zeros_for_empty_prompt
+        )
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.default_sample_size = self.unet.config.sample_size
 
-        add_watermarker = add_watermarker if add_watermarker is not None else is_invisible_watermark_available()
+        add_watermarker = (
+            add_watermarker
+            if add_watermarker is not None
+            else is_invisible_watermark_available()
+        )
 
         if add_watermarker:
             self.watermark = StableDiffusionXLWatermarker()
@@ -556,7 +636,9 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
         if is_accelerate_available() and is_accelerate_version(">=", "0.17.0.dev0"):
             from accelerate import cpu_offload_with_hook
         else:
-            raise ImportError("`enable_model_cpu_offload` requires `accelerate v0.17.0` or higher.")
+            raise ImportError(
+                "`enable_model_cpu_offload` requires `accelerate v0.17.0` or higher."
+            )
 
         device = torch.device(f"cuda:{gpu_id}")
 
@@ -565,13 +647,17 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
             torch.cuda.empty_cache()  # otherwise we don't see the memory savings (but they probably exist)
 
         model_sequence = (
-            [self.text_encoder, self.text_encoder_2] if self.text_encoder is not None else [self.text_encoder_2]
+            [self.text_encoder, self.text_encoder_2]
+            if self.text_encoder is not None
+            else [self.text_encoder_2]
         )
         model_sequence.extend([self.unet, self.vae])
 
         hook = None
         for cpu_offloaded_model in model_sequence:
-            _, hook = cpu_offload_with_hook(cpu_offloaded_model, device, prev_module_hook=hook)
+            _, hook = cpu_offload_with_hook(
+                cpu_offloaded_model, device, prev_module_hook=hook
+            )
 
         # We'll offload the last model manually.
         self.final_offload_hook = hook
@@ -645,9 +731,15 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
             batch_size = prompt_embeds.shape[0]
 
         # Define tokenizers and text encoders
-        tokenizers = [self.tokenizer, self.tokenizer_2] if self.tokenizer is not None else [self.tokenizer_2]
+        tokenizers = (
+            [self.tokenizer, self.tokenizer_2]
+            if self.tokenizer is not None
+            else [self.tokenizer_2]
+        )
         text_encoders = (
-            [self.text_encoder, self.text_encoder_2] if self.text_encoder is not None else [self.text_encoder_2]
+            [self.text_encoder, self.text_encoder_2]
+            if self.text_encoder is not None
+            else [self.text_encoder_2]
         )
 
         if prompt_embeds is None:
@@ -655,7 +747,9 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
             # textual inversion: procecss multi-vector tokens if necessary
             prompt_embeds_list = []
             prompts = [prompt, prompt_2]
-            for prompt, tokenizer, text_encoder in zip(prompts, tokenizers, text_encoders):
+            for prompt, tokenizer, text_encoder in zip(
+                prompts, tokenizers, text_encoders
+            ):
                 if isinstance(self, TextualInversionLoaderMixin):
                     prompt = self.maybe_convert_prompt(prompt, tokenizer)
 
@@ -668,12 +762,16 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
                 )
 
                 text_input_ids = text_inputs.input_ids
-                untruncated_ids = tokenizer(prompt, padding="longest", return_tensors="pt").input_ids
+                untruncated_ids = tokenizer(
+                    prompt, padding="longest", return_tensors="pt"
+                ).input_ids
 
-                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not torch.equal(
-                    text_input_ids, untruncated_ids
-                ):
-                    removed_text = tokenizer.batch_decode(untruncated_ids[:, tokenizer.model_max_length - 1 : -1])
+                if untruncated_ids.shape[-1] >= text_input_ids.shape[
+                    -1
+                ] and not torch.equal(text_input_ids, untruncated_ids):
+                    removed_text = tokenizer.batch_decode(
+                        untruncated_ids[:, tokenizer.model_max_length - 1 : -1]
+                    )
                     logger.warning(
                         "The following part of your input was truncated because CLIP can only handle sequences up to"
                         f" {tokenizer.model_max_length} tokens: {removed_text}"
@@ -693,8 +791,14 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
             prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
 
         # get unconditional embeddings for classifier free guidance
-        zero_out_negative_prompt = negative_prompt is None and self.config.force_zeros_for_empty_prompt
-        if do_classifier_free_guidance and negative_prompt_embeds is None and zero_out_negative_prompt:
+        zero_out_negative_prompt = (
+            negative_prompt is None and self.config.force_zeros_for_empty_prompt
+        )
+        if (
+            do_classifier_free_guidance
+            and negative_prompt_embeds is None
+            and zero_out_negative_prompt
+        ):
             negative_prompt_embeds = torch.zeros_like(prompt_embeds)
             negative_pooled_prompt_embeds = torch.zeros_like(pooled_prompt_embeds)
         elif do_classifier_free_guidance and negative_prompt_embeds is None:
@@ -719,9 +823,13 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
                 uncond_tokens = [negative_prompt, negative_prompt_2]
 
             negative_prompt_embeds_list = []
-            for negative_prompt, tokenizer, text_encoder in zip(uncond_tokens, tokenizers, text_encoders):
+            for negative_prompt, tokenizer, text_encoder in zip(
+                uncond_tokens, tokenizers, text_encoders
+            ):
                 if isinstance(self, TextualInversionLoaderMixin):
-                    negative_prompt = self.maybe_convert_prompt(negative_prompt, tokenizer)
+                    negative_prompt = self.maybe_convert_prompt(
+                        negative_prompt, tokenizer
+                    )
 
                 max_length = prompt_embeds.shape[1]
                 uncond_input = tokenizer(
@@ -748,24 +856,37 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
         prompt_embeds = prompt_embeds.repeat(1, num_images_per_prompt, 1)
-        prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
+        prompt_embeds = prompt_embeds.view(
+            bs_embed * num_images_per_prompt, seq_len, -1
+        )
 
         if do_classifier_free_guidance:
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
             seq_len = negative_prompt_embeds.shape[1]
-            negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.text_encoder_2.dtype, device=device)
-            negative_prompt_embeds = negative_prompt_embeds.repeat(1, num_images_per_prompt, 1)
-            negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
-
-        pooled_prompt_embeds = pooled_prompt_embeds.repeat(1, num_images_per_prompt).view(
-            bs_embed * num_images_per_prompt, -1
-        )
-        if do_classifier_free_guidance:
-            negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.repeat(1, num_images_per_prompt).view(
-                bs_embed * num_images_per_prompt, -1
+            negative_prompt_embeds = negative_prompt_embeds.to(
+                dtype=self.text_encoder_2.dtype, device=device
+            )
+            negative_prompt_embeds = negative_prompt_embeds.repeat(
+                1, num_images_per_prompt, 1
+            )
+            negative_prompt_embeds = negative_prompt_embeds.view(
+                batch_size * num_images_per_prompt, seq_len, -1
             )
 
-        return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
+        pooled_prompt_embeds = pooled_prompt_embeds.repeat(
+            1, num_images_per_prompt
+        ).view(bs_embed * num_images_per_prompt, -1)
+        if do_classifier_free_guidance:
+            negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.repeat(
+                1, num_images_per_prompt
+            ).view(bs_embed * num_images_per_prompt, -1)
+
+        return (
+            prompt_embeds,
+            negative_prompt_embeds,
+            pooled_prompt_embeds,
+            negative_pooled_prompt_embeds,
+        )
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
     def prepare_extra_step_kwargs(self, generator, eta):
@@ -774,13 +895,17 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
         # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
         # and should be between [0, 1]
 
-        accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
+        accepts_eta = "eta" in set(
+            inspect.signature(self.scheduler.step).parameters.keys()
+        )
         extra_step_kwargs = {}
         if accepts_eta:
             extra_step_kwargs["eta"] = eta
 
         # check if the scheduler accepts generator
-        accepts_generator = "generator" in set(inspect.signature(self.scheduler.step).parameters.keys())
+        accepts_generator = "generator" in set(
+            inspect.signature(self.scheduler.step).parameters.keys()
+        )
         if accepts_generator:
             extra_step_kwargs["generator"] = generator
         return extra_step_kwargs
@@ -800,10 +925,13 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
         negative_pooled_prompt_embeds=None,
     ):
         if height % 8 != 0 or width % 8 != 0:
-            raise ValueError(f"`height` and `width` have to be divisible by 8 but are {height} and {width}.")
+            raise ValueError(
+                f"`height` and `width` have to be divisible by 8 but are {height} and {width}."
+            )
 
         if (callback_steps is None) or (
-            callback_steps is not None and (not isinstance(callback_steps, int) or callback_steps <= 0)
+            callback_steps is not None
+            and (not isinstance(callback_steps, int) or callback_steps <= 0)
         ):
             raise ValueError(
                 f"`callback_steps` has to be a positive integer but is {callback_steps} of type"
@@ -824,10 +952,18 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
             raise ValueError(
                 "Provide either `prompt` or `prompt_embeds`. Cannot leave both `prompt` and `prompt_embeds` undefined."
             )
-        elif prompt is not None and (not isinstance(prompt, str) and not isinstance(prompt, list)):
-            raise ValueError(f"`prompt` has to be of type `str` or `list` but is {type(prompt)}")
-        elif prompt_2 is not None and (not isinstance(prompt_2, str) and not isinstance(prompt_2, list)):
-            raise ValueError(f"`prompt_2` has to be of type `str` or `list` but is {type(prompt_2)}")
+        elif prompt is not None and (
+            not isinstance(prompt, str) and not isinstance(prompt, list)
+        ):
+            raise ValueError(
+                f"`prompt` has to be of type `str` or `list` but is {type(prompt)}"
+            )
+        elif prompt_2 is not None and (
+            not isinstance(prompt_2, str) and not isinstance(prompt_2, list)
+        ):
+            raise ValueError(
+                f"`prompt_2` has to be of type `str` or `list` but is {type(prompt_2)}"
+            )
 
         if negative_prompt is not None and negative_prompt_embeds is not None:
             raise ValueError(
@@ -859,8 +995,23 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
             )
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
-    def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, device, generator, latents=None):
-        shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
+    def prepare_latents(
+        self,
+        batch_size,
+        num_channels_latents,
+        height,
+        width,
+        dtype,
+        device,
+        generator,
+        latents=None,
+    ):
+        shape = (
+            batch_size,
+            num_channels_latents,
+            height // self.vae_scale_factor,
+            width // self.vae_scale_factor,
+        )
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -868,7 +1019,9 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
             )
 
         if latents is None:
-            latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+            latents = randn_tensor(
+                shape, generator=generator, device=device, dtype=dtype
+            )
         else:
             latents = latents.to(device)
 
@@ -876,11 +1029,14 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
         latents = latents * self.scheduler.init_noise_sigma
         return latents
 
-    def _get_add_time_ids(self, original_size, crops_coords_top_left, target_size, dtype):
+    def _get_add_time_ids(
+        self, original_size, crops_coords_top_left, target_size, dtype
+    ):
         add_time_ids = list(original_size + crops_coords_top_left + target_size)
 
         passed_add_embed_dim = (
-            self.unet.config.addition_time_embed_dim * len(add_time_ids) + self.text_encoder_2.config.projection_dim
+            self.unet.config.addition_time_embed_dim * len(add_time_ids)
+            + self.text_encoder_2.config.projection_dim
         )
         expected_add_embed_dim = self.unet.add_embedding.linear_1.in_features
 
@@ -1087,7 +1243,11 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
         do_classifier_free_guidance = guidance_scale > 1.0
 
         # 3. Encode input prompt
-        (cross_attention_kwargs.get("scale", None) if cross_attention_kwargs is not None else None)
+        (
+            cross_attention_kwargs.get("scale", None)
+            if cross_attention_kwargs is not None
+            else None
+        )
 
         negative_prompt = negative_prompt if negative_prompt is not None else ""
 
@@ -1096,7 +1256,9 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
             negative_prompt_embeds,
             pooled_prompt_embeds,
             negative_pooled_prompt_embeds,
-        ) = get_weighted_text_embeddings_sdxl(pipe=self, prompt=prompt, neg_prompt=negative_prompt)
+        ) = get_weighted_text_embeddings_sdxl(
+            pipe=self, prompt=prompt, neg_prompt=negative_prompt
+        )
 
         # 4. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps, device=device)
@@ -1127,36 +1289,56 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
 
         if do_classifier_free_guidance:
             prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds], dim=0)
-            add_text_embeds = torch.cat([negative_pooled_prompt_embeds, add_text_embeds], dim=0)
+            add_text_embeds = torch.cat(
+                [negative_pooled_prompt_embeds, add_text_embeds], dim=0
+            )
             add_time_ids = torch.cat([add_time_ids, add_time_ids], dim=0)
 
         prompt_embeds = prompt_embeds.to(device)
         add_text_embeds = add_text_embeds.to(device)
-        add_time_ids = add_time_ids.to(device).repeat(batch_size * num_images_per_prompt, 1)
+        add_time_ids = add_time_ids.to(device).repeat(
+            batch_size * num_images_per_prompt, 1
+        )
 
         # 8. Denoising loop
-        num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
+        num_warmup_steps = max(
+            len(timesteps) - num_inference_steps * self.scheduler.order, 0
+        )
 
         # 7.1 Apply denoising_end
-        if denoising_end is not None and type(denoising_end) == float and denoising_end > 0 and denoising_end < 1:
+        if (
+            denoising_end is not None
+            and type(denoising_end) == float
+            and denoising_end > 0
+            and denoising_end < 1
+        ):
             discrete_timestep_cutoff = int(
                 round(
                     self.scheduler.config.num_train_timesteps
                     - (denoising_end * self.scheduler.config.num_train_timesteps)
                 )
             )
-            num_inference_steps = len(list(filter(lambda ts: ts >= discrete_timestep_cutoff, timesteps)))
+            num_inference_steps = len(
+                list(filter(lambda ts: ts >= discrete_timestep_cutoff, timesteps))
+            )
             timesteps = timesteps[:num_inference_steps]
 
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = torch.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = (
+                    torch.cat([latents] * 2) if do_classifier_free_guidance else latents
+                )
 
-                latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
+                latent_model_input = self.scheduler.scale_model_input(
+                    latent_model_input, t
+                )
 
                 # predict the noise residual
-                added_cond_kwargs = {"text_embeds": add_text_embeds, "time_ids": add_time_ids}
+                added_cond_kwargs = {
+                    "text_embeds": add_text_embeds,
+                    "time_ids": add_time_ids,
+                }
                 noise_pred = self.unet(
                     latent_model_input,
                     t,
@@ -1169,17 +1351,25 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
                 # perform guidance
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                    noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+                    noise_pred = noise_pred_uncond + guidance_scale * (
+                        noise_pred_text - noise_pred_uncond
+                    )
 
                 if do_classifier_free_guidance and guidance_rescale > 0.0:
                     # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
-                    noise_pred = rescale_noise_cfg(noise_pred, noise_pred_text, guidance_rescale=guidance_rescale)
+                    noise_pred = rescale_noise_cfg(
+                        noise_pred, noise_pred_text, guidance_rescale=guidance_rescale
+                    )
 
                 # compute the previous noisy sample x_t -> x_t-1
-                latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
+                latents = self.scheduler.step(
+                    noise_pred, t, latents, **extra_step_kwargs, return_dict=False
+                )[0]
 
                 # call the callback, if provided
-                if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
+                if i == len(timesteps) - 1 or (
+                    (i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0
+                ):
                     progress_bar.update()
                     if callback is not None and i % callback_steps == 0:
                         callback(i, t, latents)
@@ -1187,10 +1377,14 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
         # make sure the VAE is in float32 mode, as it overflows in float16
         if self.vae.dtype == torch.float16 and self.vae.config.force_upcast:
             self.upcast_vae()
-            latents = latents.to(next(iter(self.vae.post_quant_conv.parameters())).dtype)
+            latents = latents.to(
+                next(iter(self.vae.post_quant_conv.parameters())).dtype
+            )
 
         if not output_type == "latent":
-            image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0]
+            image = self.vae.decode(
+                latents / self.vae.config.scaling_factor, return_dict=False
+            )[0]
         else:
             image = latents
             return StableDiffusionXLPipelineOutput(images=image)
@@ -1211,7 +1405,11 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
         return StableDiffusionXLPipelineOutput(images=image)
 
     # Overrride to properly handle the loading and unloading of the additional text encoder.
-    def load_lora_weights(self, pretrained_model_name_or_path_or_dict: Union[str, Dict[str, torch.Tensor]], **kwargs):
+    def load_lora_weights(
+        self,
+        pretrained_model_name_or_path_or_dict: Union[str, Dict[str, torch.Tensor]],
+        **kwargs,
+    ):
         # We could have accessed the unet config from `lora_state_dict()` too. We pass
         # it here explicitly to be able to tell that it's coming from an SDXL
         # pipeline.
@@ -1220,9 +1418,13 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
             unet_config=self.unet.config,
             **kwargs,
         )
-        self.load_lora_into_unet(state_dict, network_alphas=network_alphas, unet=self.unet)
+        self.load_lora_into_unet(
+            state_dict, network_alphas=network_alphas, unet=self.unet
+        )
 
-        text_encoder_state_dict = {k: v for k, v in state_dict.items() if "text_encoder." in k}
+        text_encoder_state_dict = {
+            k: v for k, v in state_dict.items() if "text_encoder." in k
+        }
         if len(text_encoder_state_dict) > 0:
             self.load_lora_into_text_encoder(
                 text_encoder_state_dict,
@@ -1232,7 +1434,9 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
                 lora_scale=self.lora_scale,
             )
 
-        text_encoder_2_state_dict = {k: v for k, v in state_dict.items() if "text_encoder_2." in k}
+        text_encoder_2_state_dict = {
+            k: v for k, v in state_dict.items() if "text_encoder_2." in k
+        }
         if len(text_encoder_2_state_dict) > 0:
             self.load_lora_into_text_encoder(
                 text_encoder_2_state_dict,
@@ -1247,8 +1451,12 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
         self,
         save_directory: Union[str, os.PathLike],
         unet_lora_layers: Dict[str, Union[torch.nn.Module, torch.Tensor]] = None,
-        text_encoder_lora_layers: Dict[str, Union[torch.nn.Module, torch.Tensor]] = None,
-        text_encoder_2_lora_layers: Dict[str, Union[torch.nn.Module, torch.Tensor]] = None,
+        text_encoder_lora_layers: Dict[
+            str, Union[torch.nn.Module, torch.Tensor]
+        ] = None,
+        text_encoder_2_lora_layers: Dict[
+            str, Union[torch.nn.Module, torch.Tensor]
+        ] = None,
         is_main_process: bool = True,
         weight_name: str = None,
         save_function: Callable = None,
@@ -1257,15 +1465,22 @@ class SDXLLongPromptWeightingPipeline(DiffusionPipeline, FromSingleFileMixin, Lo
         state_dict = {}
 
         def pack_weights(layers, prefix):
-            layers_weights = layers.state_dict() if isinstance(layers, torch.nn.Module) else layers
-            layers_state_dict = {f"{prefix}.{module_name}": param for module_name, param in layers_weights.items()}
+            layers_weights = (
+                layers.state_dict() if isinstance(layers, torch.nn.Module) else layers
+            )
+            layers_state_dict = {
+                f"{prefix}.{module_name}": param
+                for module_name, param in layers_weights.items()
+            }
             return layers_state_dict
 
         state_dict.update(pack_weights(unet_lora_layers, "unet"))
 
         if text_encoder_lora_layers and text_encoder_2_lora_layers:
             state_dict.update(pack_weights(text_encoder_lora_layers, "text_encoder"))
-            state_dict.update(pack_weights(text_encoder_2_lora_layers, "text_encoder_2"))
+            state_dict.update(
+                pack_weights(text_encoder_2_lora_layers, "text_encoder_2")
+            )
 
         self.write_lora_layers(
             state_dict=state_dict,
